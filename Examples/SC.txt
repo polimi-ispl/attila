@@ -1,0 +1,17 @@
+* C:\Users\Stefano\Desktop\Thesis\MATLAB_WDF\SpiceToWDF\TestCases\NonLinear\SC.asc
+Vin N001 0 wavefile=..\..\Input\Sine250.wav
+R3 N002 0 10k
+R1 N002 N001 4.7k
+R2 N002 N003 150
+XD1 N003 0 extendedschockleydiode params: Is=1n eta=1.9 Vth=25.8563m Rs=1m Rp=1Meg
+XD2 0 N003 extendedschockleydiode params: Is=1n eta=1.9 Vth=25.8563m Rs=1m Rp=1Meg
+
+* block symbol definitions
+.subckt extendedschockleydiode 1 2
+B 1 2 I=Is*(exp((V(1,2)-Rs*I(B))/(eta*Vth))-1)+(V(1,2)-Rs*I(B))/Rp
+.ends extendedschockleydiode
+
+.wave "SC_LTspice.wav" 16 48k V(n002)
+.tran 5s
+.backanno
+.end

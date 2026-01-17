@@ -1,0 +1,83 @@
+function [ y_out , v_out , i_out , eTime] = processWDF( x_in , nBuff , order , Z , S_fun , scat_funcs , R_th_funcs , out_fun , rho , solv_fun , tolSLV , tolDSR , L )
+    N = length( x_in );
+    nEl = size( Z , 1 );
+    [ idx_l , idx_nl ] = identifyNonLinEls( order );
+    Z = diag( Z );
+    S = S_fun( Z );
+    [ a , a_buff , b , b_buff , v , v_old , R_th , y_out , v_out , i_out ] = initVecs( N , nEl , Z , nBuff , idx_nl , tolSLV , tolDSR );
+    k = 0;
+    eTime = 0;
+    while k < N
+        k = k + 1;
+        for ii = idx_l
+            b( ii ) = scat_funcs{ ii }( a_buff( ii , : )' , b_buff( ii , : )' , x_in( k ) );
+        end
+        tic;
+        [ Z , S ] = applyDSR( R_th , Z , S , S_fun , idx_nl , tolDSR );
+        [ a , b , v ] = solv_fun( a , b , v , v_old , rho , Z , S , scat_funcs , idx_nl , tolSLV , L );
+        eTime = eTime + toc;
+        R_th = findEqThRes( a , b , R_th , R_th_funcs , Z , idx_nl , rho );
+        v_out( k , : ) = 0.5 * diag( Z ) .^ ( 1 - rho ) .* ( a + b );
+        i_out( k , : ) = 0.5 * diag( Z ) .^ ( -rho ) .* ( a - b );
+        y_out( k ) = out_fun( a , b );
+        a_buff( : , nBuff ) = a;
+        a_buff = circshift( a_buff , 1 , 2 );
+        b_buff( : , nBuff ) = b;
+        b_buff = circshift( b_buff , 1 , 2 );
+        v_old = v + tolSLV;
+    end
+end
+
+function [ idx_l , idx_nl ] = identifyNonLinEls( order )
+    linElsAvail = [ "Vin" ; "V" ; "Iin" ; "I" ; "R" ; "C" ; "L" ];
+    nonLinElsAvail = "D";
+    idx_l = [ ];
+    idx_nl = [ ];
+    for ii = 1 : length( order.Types )
+        if ismember( order.Types( ii ) , linElsAvail )
+            idx_l = [ idx_l , ii ];
+        elseif ismember( order.Types( ii ) , nonLinElsAvail )
+            idx_nl = [ idx_nl , ii ];
+        else
+            error( 'Element type not available' );
+        end
+    end
+end
+
+function [ a , a_buff , b , b_buff , v , v_old , R_th , y_out , v_out , i_out ] = initVecs( N , nEl , Z , nBuff , idx_nl , tolSLV , tolDSR )
+    a = zeros( nEl , 1 );
+    b = zeros( nEl , 1 );
+    a_buff = zeros( nEl , nBuff );
+    b_buff = zeros( nEl , nBuff );
+    v = zeros( nEl , 1 );
+    v_old = v + tolSLV;
+    R_th = diag( Z );
+    for ii = idx_nl
+        R_th( ii ) = R_th( ii ) + tolDSR;
+    end
+    y_out = zeros( N , 1 );
+    v_out = zeros( N , nEl );
+    i_out = zeros( N , nEl );
+end
+
+function [ Z , S ] = applyDSR( R_th , Z_old , S_old , S_fun , idx_nl , tolDSR )
+    if norm( R_th - diag( Z_old ) ) >= tolDSR
+        Z = Z_old;
+        for ii = idx_nl
+            Z( ii , ii ) = R_th( ii );
+        end
+    S = S_fun( Z );
+    else
+        Z = Z_old;
+        S = S_old;
+    end
+end
+
+function [ R_th ] = findEqThRes( a , b , R_th_old , R_th_funcs , Z , idx_nl , rho )
+    R_th = R_th_old;
+    for ii = idx_nl
+        v = 0.5 * Z( ii , ii ) ^ ( 1 - rho ) * ( a( ii ) + b( ii ) );
+        i = 0.5 * Z( ii , ii ) ^ ( -rho ) * ( a( ii ) - b( ii ) );
+        R_th( ii ) = R_th_funcs{ ii }( v , i );
+    end
+end
