@@ -1,5 +1,7 @@
 # ATTILA: A Wave Digital Circuit Simulator
 
+<p align="center"><img src="https://github.com/polimi-ispl/attila/blob/ef6fdf4b24b623ccad1e480d1068833d43c5c408/Assets/logo2.png"/>
+
 Welcome to the official repository of **ATTILA** (*wAve digiTal circuiT sImuLAtor*), an open-source framework for the **automatic generation and simulation of Wave Digital (WD) circuit models** starting from standard SPICE netlists.
 
 This repository accompanies the paper:
